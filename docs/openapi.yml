@@ -1,0 +1,456 @@
+openapi: 3.0.0
+info:
+  version: "1.0.0"
+  title: Generic Django REST API Specifications
+  description: This document describes the API specifications for the Generic Django REST API. All endpoints have a throttling limit of 100 requests per minute per user. The anonymous endpoints (indicated by having no lock) additionally have a throttling limit of 20 requests per minute per unique IP address. If a throttling limit is reached, the API responds with the status code 429 ("Too Many Requests") for subsequent requests. The "detail" field of the JSON response body and the "Retry-After" header field both indicate when the API will respond to this user again.
+  contact:
+    name: Sven Grübel
+    url: https://gruebel.dev/
+    email: sven@gruebel.dev
+security:
+  - cookieAuth: []
+tags:
+  - name: User Management
+    description: All endpoints regarding user management
+  - name: Users
+    description: All endpoints regarding user data
+  - name: Verification
+    description: All endpoints regarding user verification
+paths:
+
+##################################################
+# USER MANAGEMENT ENDPOINTS
+##################################################
+
+  /users/login:
+    post:
+      tags:
+        - User Management
+      description: Attempt a user login.
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        200:
+          description: The login attempt was successful. The response holds information about the user. The API key is found in the `Set-Cookie` header of the response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateUser"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+  /users/logout:
+    post:
+      tags:
+        - User Management
+      description: Logout the currently logged-in user.
+      responses:
+        204:
+          description: Logout successful. The response header `Set-Cookie` invalidates the authentication cookie.
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+  /users/change-password:
+    post:
+      tags:
+        - User Management
+      description: Change the password of the logged-in user.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                old_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        204:
+          $ref: "#/components/responses/NoContent"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+  /users/change-email-address:
+    post:
+      tags:
+        - User Management
+      description: Change the email address of the currently logged-in user. The `secret` can be obtained through the verification process. It must be authenticated and must be of type `email`.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                secret:
+                  type: string
+                  format: uuid
+                  description: Obtained through the verification process. Must be authenticated and of type `email`.
+      responses:
+        200:
+          description: The email address has been updated successfully. The response body holds the updated user information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateUser"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+  /users/change-phone-number:
+    post:
+      tags:
+        - User Management
+      description: Change the phone number of the currently logged-in user. The `secret` can be obtained through the verification process. It must be authenticated and must be of type `phone_number`.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                secret:
+                  type: string
+                  format: uuid
+                  description: Obtained through the verification process. Must be authenticated and of type `phone_number`.
+      responses:
+        200:
+          description: The phone number has been updated successfully. The response body holds the updated user information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateUser"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+  /users/signup:
+    post:
+      tags:
+        - User Management
+      description: Register a new user. The `secret` can be obtained through the verification process. It must be unauthenticated and of type `email`.
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                secret:
+                  type: string
+                  format: uuid
+                  description: Obtained through the verification process. Must be unauthenticated and of type `email`.
+      responses:
+        204:
+          $ref: "#/components/responses/NoContent"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+  /users/reset-password:
+    post:
+      tags:
+        - User Management
+      description: Request a password reset. The `secret` can be obtained through the verification process. It must be unauthenticated and can be of any type.
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+                - secret
+              properties:
+                password:
+                  type: string
+                secret:
+                  type: string
+                  format: uuid
+                  description: Obtained through the verification process. Must be unauthenticated and can be of any type.
+      responses:
+        204:
+          $ref: "#/components/responses/NoContent"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+
+##################################################
+# USER ENDPOINTS
+##################################################
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      description: Get information about the currently logged-in user.
+      responses:
+        200:
+          description: The user's information has successfully been loaded and is in the response body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateUser"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+    patch:
+      tags:
+        - Users
+      description: Update information about the currently logged-in user.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ChangeablePublicUser"
+                - $ref: "#/components/schemas/ChangeablePrivateUser"
+      responses:
+        200:
+          description: The information was updated successfully. The response holds the new user information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateUser"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      description: Get public data of the user with the given ID.
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the user
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: User was found and their public data is returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicUser"
+        400:
+          $ref: "#/components/responses/BadRequest"
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        404:
+          $ref: "#/components/responses/NotFound"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+
+##################################################
+# VERIFICATION ENDPOINTS
+##################################################
+
+  /verification/request:
+    post:
+      tags:
+        - Verification
+      description: Request a verification token for a phone number or an email address via out-of-band channel. Exactly one of the fields in the request body may be set. If the "username" field is set, the phone number of that user is used as the out-of-band channel.
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    phone_number:
+                      type: string
+                      format: phone-number
+                      example: "0041791234567"
+                - type: object
+                  properties:
+                    email:
+                      type: string
+                      format: email
+                - type: object
+                  properties:
+                    username:
+                      type: string
+      responses:
+        200:
+          description: The verification process has been started. A 6-digit verification token has been sent via the requested out-of-band channel. Use the verification ID and the received token in the confirmation step of the verification process. The verification ID and token are valid for 10 minutes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verification:
+                    type: string
+                    format: uuid
+        400:
+          $ref: "#/components/responses/BadRequest"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+  /verification/confirm:
+    post:
+      tags:
+        - Verification
+      description: Confirm the possession of a phone number, email address, or user account by entering the verification ID of the previous step, as well as the 6-digit code that was received via out-of-band channel.
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                verification:
+                  type: string
+                  format: uuid
+                token:
+                  type: integer
+                  minimum: 100000
+                  maximum: 999999
+      responses:
+        200:
+          description: The possession of the phone number, email address, or user account has been successfully verified and a secret token is returned. This secret token can be used wherever necessary (e.g. user signup or changing phone number) provided that the secret is tied to a verification process of a type that is accepted by the secret-consuming endpoint. Refer to the documentation of the specific secret-consuming endpoint for further information about the accepted types.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                    format: uuid
+        400:
+          $ref: "#/components/responses/BadRequest"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+
+##################################################
+
+components:
+  schemas:
+    ChangeablePublicUser:
+      type: object
+      properties:
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+    ChangeablePrivateUser:
+      type: object
+      properties:
+        address_street_1:
+          type: string
+        address_street_2:
+          type: string
+        address_zip_code:
+          type: string
+        address_town:
+          type: string
+        address_country:
+          type: string
+    PublicUser:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+        - $ref: "#/components/schemas/ChangeablePublicUser"
+        - type: object
+          properties:
+            date_joined:
+              type: string
+              format: date-time
+            last_login:
+              type: string
+              format: date-time
+            last_activity:
+              type: string
+              format: date-time
+            is_staff:
+              type: boolean
+    PrivateUser:
+      allOf:
+        - $ref: "#/components/schemas/PublicUser"
+        - $ref: "#/components/schemas/ChangeablePrivateUser"
+        - type: object
+          properties:
+            email:
+              type: string
+              format: email
+            phone_number:
+              type: string
+              format: phone-number
+              example: "0041791234567"
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth_token
+  responses:
+    NoContent:
+      description: The request was successful. The response body is empty on purpose.
+    BadRequest:
+      description: The request failed because the input was invalid.
+    Unauthorized:
+      description: The request failed because the user is not authorized. This happens if no authentication token is passed.
+    Forbidden:
+      description: The request is considered forbidden. This is because the user performing the request is either not authenticated, or they lack the necessary rights to perform this operation. The response body gives further information about the reason.
+    NotFound:
+      description: The requested resource was not found.
+    Conflict:
+      description: Some preconditions are violated. The response body gives further information about what caused the conflict.
+    TooManyRequests:
+      description: Rate limit reached. The response body gives more information about when further requests are allowed.
